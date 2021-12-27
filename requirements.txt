@@ -1,0 +1,8 @@
+numpy
+cirq
+scipy
+sympy
+networkx
+matplotlib
+jupyter 
+notebook
