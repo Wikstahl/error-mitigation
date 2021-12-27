@@ -135,7 +135,7 @@ class MyClass(object):
     def simulate_qaoa(self,
                       params: tuple,
                       meas: bool = False,
-                      with_noise: cirq.SingleQubitGate = None) -> cirq.DensityMatrixTrialResult:
+                      with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
         """Simulates the p=1 QAOA circuit of a graph
 
         Args:
@@ -145,7 +145,7 @@ class MyClass(object):
                 appended fter every gate. Defaults to None.
 
         Returns:
-            cirq.DensityMatrixTrialResult: Result
+            numpy.ndarray: Density matrix output
         """
         alpha, beta = params
         resolver = cirq.ParamResolver({'alpha': alpha, 'beta': beta})
@@ -168,9 +168,31 @@ class MyClass(object):
             initial_state=initial_state,
             qubit_order=cirq.LineQubit.range(self.num_nodes)
         )
-        return result
+        return result.final_density_matrix
+
+    def optimize_qaoa(self, x: tuple, *args: tuple) -> float:
+        """Optimization function for QAOA that is compatible with 
+            Scipy optimize.
+
+        Args:
+            x (tuple): Variational parameters
+            *args (tuple): Error Channel
+        Returns:
+            float: Expectation value
+        """
+        if args:
+            rho = self.simulate_qaoa(
+                params=x,
+                with_noise=args[0]
+            )
+        else:
+            rho = self.simulate_qaoa(
+                params=x
+            ) 
+        return numpy.trace(self.cost*rho).real
 
     def qaoa_expval(self, rho) -> float:
+
         return numpy.trace(self.cost * rho).real
 
     def virtual_distillation(self,
