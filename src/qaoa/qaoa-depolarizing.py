@@ -19,7 +19,7 @@ for idx in range(30):
         # Args to brute
         args = ([DepolarizingChannel(p=p)])
         # Optimization bounds
-        ranges = ((0, np.pi/2), (0, np.pi/4))
+        ranges = ((0, np.pi), (0, np.pi/2))
         # Brute force on 100 x 100 grid
         if p == 0:
             res = brute(obj.optimize_qaoa, ranges, args=None, Ns=100,
