@@ -171,7 +171,7 @@ class MyClass(object):
         return result.final_density_matrix
 
     def optimize_qaoa(self, x: tuple, *args: tuple) -> float:
-        """Optimization function for QAOA that is compatible with 
+        """Optimization function for QAOA that is compatible with
             Scipy optimize.
 
         Args:
@@ -188,12 +188,53 @@ class MyClass(object):
         else:
             rho = self.simulate_qaoa(
                 params=x
-            ) 
-        return numpy.trace(self.cost*rho).real
-
-    def qaoa_expval(self, rho) -> float:
-
+            )
         return numpy.trace(self.cost * rho).real
+
+    def unmitigated_cost(self, rho: numpy.ndarray) -> float:
+        """Calculates the unmitigated cost
+
+        Args:
+            rho (numpy.ndarray): Density matrix.
+
+        Returns:
+            float: Unmitigated cost
+        """
+        return numpy.trace(self.cost * rho).real
+
+    def mitigated_cost(self, rho: numpy.ndarray, p: float = 0) -> float:
+        """Calculates the mitigated cost of virtual distillation
+
+        Args:
+            rho (numpy.ndarray): Input density matrix
+            p (float): Error probability. Defaults to 0.
+
+        Returns:
+            float: Mitigated cost
+        """
+        # Change dtype to complex64
+        if rho.dtype != 'complex64' or rho.dtype != 'complex128':
+            rho = rho.astype('complex64')
+        # Normalized square of density matrix
+        rho_sq = rho@rho / numpy.trace(rho@rho)
+        if p == 0:
+            # This is mitigated cost for dephasing noise
+            m_cost = numpy.trace(self.cost * rho_sq).real
+        else:
+            # This is the mitigated cost for depolarizing noise
+            qubits = cirq.LineQubit.range(self.num_nodes)
+            expval = 0
+            for u, v in self.graph.edges:
+                zz = cirq.PauliString(cirq.Z(qubits[u])) \
+                    * cirq.PauliString(cirq.Z(qubits[v]))
+                expval_zz = zz.expectation_from_density_matrix(
+                    state = rho_sq,
+                    atol = 1e-07,
+                    qubit_map = {q: i for i, q in enumerate(qubits)}
+                )
+                expval += (1-p)**2 * expval_zz
+            m_cost = 1/2 * (expval - self.num_edges).real
+        return m_cost
 
     def virtual_distillation(self,
                              meas: bool = True,
@@ -229,7 +270,7 @@ class MyClass(object):
     def simulate_virtual_distillation(self,
                                       rho: numpy.ndarray,
                                       meas: bool = False,
-                                      with_noise: cirq.SingleQubitGate = None) -> cirq.DensityMatrixTrialResult:
+                                      with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
         """Simulates the virtual distillation process
 
         Args:
@@ -241,7 +282,8 @@ class MyClass(object):
         Returns:
             cirq.DensityMatrixTrialResult: Result
         """
-        dim, _ = rho.shape
+        shape = rho.shape
+        dim = shape[0]
 
         if numpy.log2(dim) != self.num_nodes:
             assert("Error")

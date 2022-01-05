@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # Files
+*.pdf
 
 # Folders
 .vscode
