@@ -300,9 +300,7 @@ class MyClass(object):
         initial_state = initial_state.astype('complex64')
 
         # Simulating with the density matrix simulator.
-        sim = cirq.DensityMatrixSimulator(
-            split_untangled_states=True
-        )
+        sim = cirq.DensityMatrixSimulator()
 
         # Simulate Virtual distillation
         result = sim.simulate(
@@ -367,6 +365,25 @@ class MyClass(object):
                          + numerator**2 / denominator**4 * var_denominator
                          - 2 * numerator / denominator**3 * cov).real
         return var_estimator
+
+    def ideal_mitigated_variance(self, rho: numpy.ndarray) -> float:
+        """Calculates the theoretical idel mitigated variance of the estimator
+
+        Args:
+            rho (np.ndarray): input density matrix to virtual distillation.
+
+        Returns:
+            float: variance of the estimator
+
+        """
+        O = self.cost
+        rho_sq = rho@rho # rho squared
+        var_est = numpy.trace(O**2*rho) / (2*numpy.trace(rho_sq)**2) \
+                + numpy.trace(O*rho)**2 / (2*numpy.trace(rho_sq)**2) \
+                + numpy.trace(O*rho_sq)**2 / (numpy.trace(rho_sq)**4) \
+                - 2 * numpy.trace(O*rho_sq) / (numpy.trace(rho_sq)**3) \
+                * numpy.trace(O*rho)
+        return var_est
 
     def ground_state(self) -> numpy.ndarray:
         """Creates a ground state for a given Max-Cut graph
