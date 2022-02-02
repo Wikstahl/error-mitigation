@@ -113,8 +113,8 @@ class MyClass(object):
         for (u, v) in self.graph.edges:
             circuit.append(
                 cirq.ops.ZZPowGate(
-                    exponent=(alpha / numpy.pi),
-                    global_shift=-1
+                    exponent=alpha,
+                    global_shift=-1/(2*numpy.pi)
                 )(qubits[u], qubits[v])
             )
             if with_noise != None:
@@ -123,8 +123,8 @@ class MyClass(object):
         circuit.append(
             cirq.Moment(
                 cirq.ops.XPowGate(
-                    exponent=(beta / numpy.pi),
-                    global_shift=-1
+                    exponent=beta,
+                    global_shift=-1/numpy.pi
                 )(q) for q in qubits
             )
         )
