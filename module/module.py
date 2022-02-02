@@ -56,9 +56,6 @@ class MyClass(object):
         """
         Returns the MaxCut cost values of a graph
 
-        Args:
-            graph (networkx.Graph): graph
-
         Returns:
             numpy.ndarray: The cost values as an 1D-array
         """
@@ -94,7 +91,6 @@ class MyClass(object):
         """Creates the first iteration of the QAOA circuit
 
         Args:
-            graph (networkx.Graph): Max-Cut graph
             meas (bool, optional): Measurments at the end. Defaults to True.
             with_noise (cirq.SingleQubitGate, optional): Error channel to be
                 appended after every gate. Defaults to None.
@@ -112,21 +108,29 @@ class MyClass(object):
         circuit.append(cirq.H(q) for q in qubits)  # Add Hadamard
 
         if with_noise != None:
-            circuit.append(with_noise.on_each(
-                *cirq.LineQubit.range(self.num_nodes))
-            )
+            circuit.append(with_noise.on_each(*qubits))
 
         for (u, v) in self.graph.edges:
-            circuit.append(cirq.ZZ(qubits[u], qubits[v]) ** alpha)
+            circuit.append(
+                cirq.ops.ZZPowGate(
+                    exponent=(alpha / numpy.pi),
+                    global_shift=-1
+                )(qubits[u], qubits[v])
+            )
             if with_noise != None:
                 circuit.append(with_noise.on_each(qubits[u], qubits[v]))
 
-        circuit.append(cirq.Moment(cirq.X(q) ** beta for q in qubits))
+        circuit.append(
+            cirq.Moment(
+                cirq.ops.XPowGate(
+                    exponent=(beta / numpy.pi),
+                    global_shift=-1
+                )(q) for q in qubits
+            )
+        )
 
         if with_noise != None:
-            circuit.append(with_noise.on_each(
-                *cirq.LineQubit.range(self.num_nodes))
-            )
+            circuit.append(with_noise.on_each(*qubits))
 
         if meas:
             circuit.append(cirq.Moment(cirq.measure(q) for q in qubits))
@@ -223,17 +227,13 @@ class MyClass(object):
         else:
             # This is the mitigated cost for depolarizing noise
             qubits = cirq.LineQubit.range(self.num_nodes)
-            expval = 0
+            expval_zz = 0
             for u, v in self.graph.edges:
                 zz = cirq.PauliString(cirq.Z(qubits[u])) \
                     * cirq.PauliString(cirq.Z(qubits[v]))
-                expval_zz = zz.expectation_from_density_matrix(
-                    state = rho_sq,
-                    atol = 1e-07,
-                    qubit_map = {q: i for i, q in enumerate(qubits)}
-                )
-                expval += (1-p)**2 * expval_zz
-            m_cost = 1/2 * (expval - self.num_edges).real
+                expval_zz += (1 - p)**2 * \
+                    numpy.trace(zz.matrix(qubits)@rho_sq).real
+            m_cost = 1 / 2 * (expval_zz - self.num_edges)
         return m_cost
 
     def virtual_distillation(self,
@@ -286,7 +286,7 @@ class MyClass(object):
         dim = shape[0]
 
         if numpy.log2(dim) != self.num_nodes:
-            assert("Error")
+            assert("Error, dimensions are not correct")
 
         circuit = self.virtual_distillation(meas=meas, with_noise=with_noise)
 
@@ -354,7 +354,7 @@ class MyClass(object):
         numerator = numpy.trace(C_2 * _X)
         # expectation value of denominator
         denominator = numpy.trace(_X)
-        # variance of the numberator
+        # variance of the numerator
         var_numerator = numpy.trace(C_2**2 * rho) - numerator**2
         # variance of the denominator
         var_denominator = 1 - denominator**2
@@ -377,12 +377,12 @@ class MyClass(object):
 
         """
         O = self.cost
-        rho_sq = rho@rho # rho squared
-        var_est = numpy.trace(O**2*rho) / (2*numpy.trace(rho_sq)**2) \
-                + numpy.trace(O*rho)**2 / (2*numpy.trace(rho_sq)**2) \
-                + numpy.trace(O*rho_sq)**2 / (numpy.trace(rho_sq)**4) \
-                - 2 * numpy.trace(O*rho_sq) / (numpy.trace(rho_sq)**3) \
-                * numpy.trace(O*rho)
+        rho_sq = rho@rho  # rho squared
+        var_est = numpy.trace(O**2 * rho) / (2 * numpy.trace(rho_sq)**2) \
+            + numpy.trace(O * rho)**2 / (2 * numpy.trace(rho_sq)**2) \
+            + numpy.trace(O * rho_sq)**2 / (numpy.trace(rho_sq)**4) \
+            - 2 * numpy.trace(O * rho_sq) / (numpy.trace(rho_sq)**3) \
+            * numpy.trace(O * rho)
         return var_est
 
     def ground_state(self) -> numpy.ndarray:
@@ -413,7 +413,7 @@ class MyClass(object):
             numpy.ndarray: Density matrix
 
         """
-        return p * self.ground_state() + (1-p) * self.thermal_state(beta=beta)
+        return p * self.ground_state() + (1 - p) * self.thermal_state(beta=beta)
 
     def thermal_state(self, beta: float = .1) -> numpy.ndarray:
         """Creates a thermal state for a given graph
