@@ -112,9 +112,10 @@ class MyClass(object):
 
         for (u, v) in self.graph.edges:
             circuit.append(
+                # This gate is equivalent to the RZZ-gate
                 cirq.ops.ZZPowGate(
-                    exponent=alpha,
-                    global_shift=-1/(2*numpy.pi)
+                    exponent=(alpha / numpy.pi),
+                    global_shift=-.5
                 )(qubits[u], qubits[v])
             )
             if with_noise != None:
@@ -122,9 +123,11 @@ class MyClass(object):
 
         circuit.append(
             cirq.Moment(
+                # This gate is equivalent to the RX-gate
+                # That is why we multiply by two in the exponent
                 cirq.ops.XPowGate(
-                    exponent=beta,
-                    global_shift=-1/numpy.pi
+                    exponent=(2 * beta / numpy.pi),
+                    global_shift=-.5
                 )(q) for q in qubits
             )
         )
