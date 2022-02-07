@@ -290,7 +290,7 @@ class MyClass(object):
         if numpy.log2(dim) != self.num_nodes:
             assert("Error, dimensions are not correct")
 
-        eVals, eVecs = np.linalg.eigh(rho):
+        eVals, eVecs = np.linalg.eigh(rho)
         # cirq.validate_density_matrix requires all eigenvalues to be > -atol
         # where atol = 1e-7. Because we can't give atol as an argument to circuit
         # simulator we apprximate the density matrix to a valid one.
