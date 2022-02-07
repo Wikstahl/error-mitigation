@@ -290,14 +290,14 @@ class MyClass(object):
         if numpy.log2(dim) != self.num_nodes:
             assert("Error, dimensions are not correct")
 
-        eVals, eVecs = np.linalg.eigh(rho)
+        eVals, eVecs = numpy.linalg.eigh(rho)
         # cirq.validate_density_matrix requires all eigenvalues to be > -atol
         # where atol = 1e-7. Because we can't give atol as an argument to circuit
         # simulator we apprximate the density matrix to a valid one.
         if (eVals > -1e-7).all() == False:
             # Project the density matrix closer to the valid subspace
             eVals[eVals < -1e-7] = -1e-8
-            rho = eVecs@np.diag(eVals)@np.conj(eVecs.T)
+            rho = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
 
         circuit = self.virtual_distillation(meas=meas, with_noise=with_noise)
 
@@ -381,7 +381,7 @@ class MyClass(object):
         """Calculates the theoretical idel mitigated variance of the estimator
 
         Args:
-            rho (np.ndarray): input density matrix to virtual distillation.
+            rho (numpy.ndarray): input density matrix to virtual distillation.
 
         Returns:
             float: variance of the estimator
