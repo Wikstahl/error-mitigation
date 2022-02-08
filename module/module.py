@@ -85,12 +85,10 @@ class MyClass(object):
         return 1 / 2 * (numpy.diag(s@numpy.triu(A)@s.T) - M)
 
     def qaoa_circuit(self,
-                     meas: bool = True,
                      with_noise: cirq.SingleQubitGate = None) -> cirq.Circuit:
         """Creates the first iteration of the QAOA circuit
 
         Args:
-            meas (bool, optional): Measurments at the end. Defaults to True.
             with_noise (cirq.SingleQubitGate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
@@ -114,8 +112,7 @@ class MyClass(object):
                 # This gate is equivalent to the RZZ-gate
                 cirq.ops.ZZPowGate(
                     exponent=(alpha / numpy.pi),
-                    global_shift=-.5
-                )(qubits[u], qubits[v])
+                    global_shift=-.5)(qubits[u], qubits[v])
             )
             if with_noise != None:
                 circuit.append(with_noise.on_each(qubits[u], qubits[v]))
@@ -126,27 +123,21 @@ class MyClass(object):
                 # That is why we multiply by two in the exponent
                 cirq.ops.XPowGate(
                     exponent=(2 * beta / numpy.pi),
-                    global_shift=-.5
-                )(q) for q in qubits
+                    global_shift=-.5)(q) for q in qubits
             )
         )
 
         if with_noise != None:
             circuit.append(with_noise.on_each(*qubits))
-
-        if meas:
-            circuit.append(cirq.Moment(cirq.measure(q) for q in qubits))
         return circuit
 
     def simulate_qaoa(self,
                       params: tuple,
-                      meas: bool = False,
                       with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
         """Simulates the p=1 QAOA circuit of a graph
 
         Args:
             params (tuple): Variational parameters
-            meas (bool): Measurments at the end. Defaults to True.
             with_noise (cirq.SingleQubitGate, optional): Error channel to be
                 appended fter every gate. Defaults to None.
 
@@ -156,7 +147,7 @@ class MyClass(object):
         alpha, beta = params
         resolver = cirq.ParamResolver({'alpha': alpha, 'beta': beta})
 
-        circuit = self.qaoa_circuit(meas=meas, with_noise=with_noise)
+        circuit = self.qaoa_circuit(with_noise=with_noise)
 
         # prepare initial state |00...0>
         initial_state = numpy.zeros(2**self.num_nodes)
@@ -239,12 +230,10 @@ class MyClass(object):
         return m_cost
 
     def virtual_distillation(self,
-                             meas: bool = True,
                              with_noise: cirq.SingleQubitGate = None) -> cirq.Circuit:
         """Creates the virtual distillation circuit for M=2
 
         Args:
-            meas (bool, optional): Measurments at the end. Defaults to True.
             with_noise (cirq.SingleQubitGate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
@@ -265,19 +254,15 @@ class MyClass(object):
                 circuit.append(with_noise.on_each(
                     qubits[0], qubits[q + 1], qubits[self.num_nodes + (q + 1)]))
 
-        if meas:
-            circuit.append(cirq.Moment(cirq.measure(q) for q in qubits))
         return circuit
 
     def simulate_virtual_distillation(self,
                                       rho: numpy.ndarray,
-                                      meas: bool = False,
                                       with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
         """Simulates the virtual distillation process
 
         Args:
             rho (numpy.ndarray): Density matrix to be purified
-            meas (bool): Measurments at the end. Defaults to True.
             with_noise (cirq.SingleQubitGate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
@@ -290,16 +275,30 @@ class MyClass(object):
         if numpy.log2(dim) != self.num_nodes:
             assert("Error, dimensions are not correct")
 
+        """
+        cirq.validate_density_matrix requires all eigenvalues to be > -atol
+        where atol = 1e-7. Because we can't give atol as an argument to the
+        circuit simulator we have to approximate the density matrix to a valid
+        one.
+        """
+        atol = 1e-7
         eVals, eVecs = numpy.linalg.eigh(rho)
-        # cirq.validate_density_matrix requires all eigenvalues to be > -atol
-        # where atol = 1e-7. Because we can't give atol as an argument to circuit
-        # simulator we apprximate the density matrix to a valid one.
-        if (eVals > -1e-7).all() == False:
+        if (eVals > -atol).all() == False:
             # Project the density matrix closer to the valid subspace
-            eVals[eVals < -1e-7] = -1e-8
-            rho = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
+            eVals[eVals < -atol] = 0
+            rho_new = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
+            # Check that the new denstiy matrix is close to the original one
+            # by computing the fidelity
+            f = self.fidelity(rho_new, rho)
+            print(f)
+            if (1 - f) > atol:
+                assert(
+                    "Approximated density matrix is not close enough to the original one")
+            else:
+                # Replace the original density matrix with the new one
+                rho = rho_new
 
-        circuit = self.virtual_distillation(meas=meas, with_noise=with_noise)
+        circuit = self.virtual_distillation(with_noise=with_noise)
 
         # Prepare the ancilla in the plus basis |+>
         ancilla = 1 / 2 * numpy.array([[1, 1], [1, 1]])
@@ -437,3 +436,17 @@ class MyClass(object):
         """
         rho = numpy.exp(-beta * self.cost)
         return rho / numpy.sum(rho)
+
+    @staticmethod
+    def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
+        """Computes the fidelity between two density matrices.
+
+        Args:
+            A (numpy.ndarray): Density matrix
+            B (numpy.ndarray): Density matrix
+
+        Returns:
+            float: fidelity
+        """
+        Asqrtm = scipy.linalg.sqrtm(A)
+        return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
