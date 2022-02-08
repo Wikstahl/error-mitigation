@@ -290,7 +290,6 @@ class MyClass(object):
             # Check that the new denstiy matrix is close to the original one
             # by computing the fidelity
             f = self.fidelity(rho_new, rho)
-            print(f)
             if (1 - f) > atol:
                 assert(
                     "Approximated density matrix is not close enough to the original one")
