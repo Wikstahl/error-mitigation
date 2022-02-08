@@ -275,28 +275,6 @@ class MyClass(object):
         if numpy.log2(dim) != self.num_nodes:
             assert("Error, dimensions are not correct")
 
-        """
-        cirq.validate_density_matrix requires all eigenvalues to be > -atol
-        where atol = 1e-7. Because we can't give atol as an argument to the
-        circuit simulator we have to approximate the density matrix to a valid
-        one.
-        """
-        atol = 1e-7
-        eVals, eVecs = numpy.linalg.eigh(rho)
-        if (eVals > -atol).all() == False:
-            # Project the density matrix closer to the valid subspace
-            eVals[eVals < -atol] = 0
-            rho_new = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
-            # Check that the new denstiy matrix is close to the original one
-            # by computing the fidelity
-            f = self.fidelity(rho_new, rho)
-            if (1 - f) > atol:
-                assert(
-                    "Approximated density matrix is not close enough to the original one")
-            else:
-                # Replace the original density matrix with the new one
-                rho = rho_new
-
         circuit = self.virtual_distillation(with_noise=with_noise)
 
         # Prepare the ancilla in the plus basis |+>
@@ -307,6 +285,28 @@ class MyClass(object):
 
         # Change data type to complex64
         initial_state = initial_state.astype('complex64')
+
+        """
+        cirq.validate_density_matrix requires all eigenvalues to be > -atol
+        where atol = 1e-7. Because we can't give atol as an argument to the
+        circuit simulator we have to approximate the density matrix to a valid
+        one.
+        """
+        atol = 1e-7
+        eVals, eVecs = numpy.linalg.eigh(initial_state)
+        if (eVals > -atol).all() == False:
+            # Project the density matrix closer to the valid subspace
+            eVals[eVals < -atol] = 0
+            new_initial_state = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
+            # Check that the new denstiy matrix is close to the original one
+            # by computing the fidelity
+            f = self.fidelity(new_initial_state, initial_state)
+            if (1 - f) > atol:
+                assert(
+                    "Approximated density matrix is not close enough to the original one")
+            else:
+                # Replace the original density matrix with the new one
+                initial_state = new_initial_state
 
         # Simulating with the density matrix simulator.
         sim = cirq.DensityMatrixSimulator()
