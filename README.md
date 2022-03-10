@@ -1,12 +1,6 @@
 # error-mitigation
-Code for reproducing the results in arxiv
 
 [![Tests](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml/badge.svg)](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml)
-
-# Table for contents
-  1. [Installation](#installation)
-  2. [Examples](#examples)
-  3. [Usage](#usage)
 
 ## Installation <a name="installation"></a>
   Clone the files
@@ -32,7 +26,7 @@ Code for reproducing the results in arxiv
   ```
 
 ## Examples <a name="examples"></a>
-Examples of how the code is produced is given the the folder `examples`
+Examples of virtual distillation applied to qaoa states and thermal states are given in the folder `examples`
 
 ## Usage <a name="usage"></a>
-The `src` folder contain the scripts for reproducing the results. The *qaoa* folder is for reproducing the virtual distillation for variational state, and *thermal* is for reproducing virtual distillation applied to thermal states.
+The `src` folder contains the scripts used for producing the results. The *qaoa* folder produces the virtual distillation for variational states results, and *thermal* produces virtual distillation applied to thermal states results.
