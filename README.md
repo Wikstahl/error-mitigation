@@ -1,6 +1,7 @@
 # error-mitigation
 
-[![Tests](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml/badge.svg)](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml)
+[![Tests](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml/badge.svg)](https://github.com/Wikstahl/error-mitigation/actions/workflows/python-app.yml) [![DOI](https://zenodo.org/badge/442167639.svg)](https://zenodo.org/badge/latestdoi/442167639)
+
 
 ## Installation <a name="installation"></a>
   Clone the files
