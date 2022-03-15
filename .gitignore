@@ -4,11 +4,9 @@ __pycache__/
 *$py.class
 
 # Files
-*.pdf
 
 # Folders
 .vscode
-figures/
 
 # C extensions
 *.so
