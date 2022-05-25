@@ -29,6 +29,6 @@ for idx in range(30):
                         full_output=True, finish=None, workers=-1)
         data[str(key)] = (p, res)
     # Save results
-    filename = path + "qaoa_parameters_brute_dephasing"
+    filename = path + "qaoa_parameters_brute_dephasing_depolarizing"
     with open(filename, 'wb') as f:
         pickle.dump(data, f)
