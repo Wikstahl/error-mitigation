@@ -128,7 +128,8 @@ class MyClass(object):
         )
 
         if with_noise != None:
-            circuit.append(with_noise.on_each(*qubits))
+            # Append a depolarzing channel after the RX-gate
+            circuit.append(DepolarizingChannel(p=with_noise._p).on_each(*qubits))
         return circuit
 
     def simulate_qaoa(self,
@@ -187,6 +188,40 @@ class MyClass(object):
                 params=x
             )
         return numpy.trace(self.cost * rho).real
+
+    def optimize_qaoa_with_vd(self, x: tuple, *args: tuple) -> float:
+        """Optimization function for QAOA with Virtual Distillation
+            that is compatible with Scipy optimize.
+
+        Args:
+            x (tuple): Variational parameters
+            *args (tuple): Error Channel
+        Returns:
+            float: Expectation value
+        """
+        if args:
+            error_channel = args[0]
+            # Get the which type of noise we are dealing with
+            noise_type = type(error_channel).__name__
+            rho = self.simulate_qaoa(
+                params=x,
+                with_noise=error_channel
+            )
+            if noise_type == "DepolarizingChannel":
+                # Error probability
+                p = error_channel._p
+                # Compute the mitigated expectation value
+                expval = self.mitigated_cost(rho, p)
+            elif noise_type == "DephasingChannel":
+                # Compute the mitigated expectation value
+                expval = self.mitigated_cost(rho, 0)
+        else:
+            rho = self.simulate_qaoa(
+                params=x
+            )
+            # Compute the mitigated expectation value
+            expval = self.mitigated_cost(rho, 0)
+        return expval.real
 
     def unmitigated_cost(self, rho: numpy.ndarray) -> float:
         """Calculates the unmitigated cost

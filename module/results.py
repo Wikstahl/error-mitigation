@@ -87,3 +87,26 @@ class Results(object):
             m_approxr.append(m_cost / self.min_cost)
 
         return approxr, m_approxr, var, m_var
+
+    def get_angles(self):
+        # Load the results for depolarizing noise
+        res_dep = pickle.load(
+            open(self.path + "qaoa_parameters_brute_depolarizing", "rb"))
+        # Load the results for dephasing noise
+        res_z = pickle.load(
+            open(self.path + "qaoa_parameters_brute_dephasing", "rb"))
+
+        # Number of data points
+        num_dat = len(res_dep)
+
+        # Store the optimal alpha angles for each data point in a list
+        alpha_dep = [res_dep[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta_dep = [res_dep[str(i)][1][0][1] for i in range(num_dat)]
+
+        # Store the optimal alpha angles for each data point in a list
+        alpha_z = [res_z[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta_z = [res_z[str(i)][1][0][1] for i in range(num_dat)]
+
+        return alpha_dep, beta_dep, alpha_z, beta_z
