@@ -4,6 +4,13 @@ __pycache__/
 *$py.class
 
 # Files
+test-plot.ipynb
+qaoa-trace-dist.ipynb
+Graph-Attributes.ipynb
+fidelity_dephasing.npy
+fidelity_depolarizing.npy
+tracedist_dephasing.npy
+tracedist_depolarizing.npy
 
 # Folders
 .vscode

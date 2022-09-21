@@ -4,6 +4,7 @@ from module import MyClass, DephasingChannel, DepolarizingChannel
 
 __all__ = ["Results"]
 
+
 class Results(object):
 
     def __init__(self, path: str) -> None:
@@ -16,11 +17,10 @@ class Results(object):
         # Get optimal cost
         self.min_cost = min(self.obj.cost)
 
-
     def DephasingNoise(self):
         # Load the results for dephasing noise
         res = pickle.load(
-            open(self.path + "qaoa_parameters_brute_dephasing", "rb"))
+            open(self.path + "qaoa_parameters_brute_dephasing_depolarizing", "rb"))
         # Number of data points
         num_dat = len(res)
         # Store the optimal alpha angles for each data point in a list
@@ -32,7 +32,7 @@ class Results(object):
         # Store all error-data points in a list
         x = [res[str(i)][0] for i in range(num_dat)]
 
-        res = pickle.load(open(self.path + "qaoa_variance_dephasing","rb"))
+        res = pickle.load(open(self.path + "qaoa_variance_dephasing", "rb"))
         var = [res[str(i)][1] for i in range(num_dat)]
         m_var = [res[str(i)][2] for i in range(num_dat)]
 
@@ -52,6 +52,40 @@ class Results(object):
 
         return approxr, m_approxr, var, m_var
 
+    def DephasingNoiseWithVD(self):
+        # Load the results for dephasing noise
+        res = pickle.load(
+            open(self.path + "qaoa_parameters_brute_dephasing_with_vd", "rb"))
+        # Number of data points
+        num_dat = len(res)
+        # Store the optimal alpha angles for each data point in a list
+        alpha = [res[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta = [res[str(i)][1][0][1] for i in range(num_dat)]
+        # Store the unmitigated approximation ratio in a list
+        m_approxr = [res[str(i)][1][1] / self.min_cost for i in range(num_dat)]
+        # Store all error-data points in a list
+        x = [res[str(i)][0] for i in range(num_dat)]
+
+        res = pickle.load(open(self.path + "qaoa_variance_dephasing", "rb"))
+        var = [res[str(i)][1] for i in range(num_dat)]
+        m_var = [res[str(i)][2] for i in range(num_dat)]
+
+        # Simulate QAOA with dephasing noise to get the density matrix output
+        approxr = []  # Init empty list
+        for i in range(num_dat):
+            if x[i] == 0:
+                rho = self.obj.simulate_qaoa(
+                    (alpha[i], beta[i]), with_noise=None)
+            else:
+                rho = self.obj.simulate_qaoa(
+                    (alpha[i], beta[i]), with_noise=DephasingChannel(p=x[i]))
+            # Calculate the unmitigated cost given rho
+            cost = self.obj.unmitigated_cost(rho)
+            # Calculate the mitigated approximation ratio
+            approxr.append(cost / self.min_cost)
+
+        return approxr, m_approxr, var, m_var
 
     def DepolarizingNoise(self):
         # Load the results for depolarizing noise
@@ -69,7 +103,7 @@ class Results(object):
         # Store all error-data points in a list
         x = [res[str(i)][0] for i in range(num_dat)]
 
-        res = pickle.load(open(self.path + "qaoa_variance_depolarizing","rb"))
+        res = pickle.load(open(self.path + "qaoa_variance_depolarizing", "rb"))
         var = [res[str(i)][1] for i in range(num_dat)]
         m_var = [res[str(i)][2] for i in range(num_dat)]
 
@@ -77,7 +111,8 @@ class Results(object):
         m_approxr = []
         for i in range(num_dat):
             if x[i] == 0:
-                rho = self.obj.simulate_qaoa((alpha[i], beta[i]), with_noise=None)
+                rho = self.obj.simulate_qaoa(
+                    (alpha[i], beta[i]), with_noise=None)
             else:
                 rho = self.obj.simulate_qaoa(
                     (alpha[i], beta[i]), with_noise=DepolarizingChannel(p=x[i]))
@@ -88,13 +123,72 @@ class Results(object):
 
         return approxr, m_approxr, var, m_var
 
+    def DepolarizingNoiseWithVD(self):
+        # Load the results for depolarizing noise
+        res = pickle.load(
+            open(self.path + "qaoa_parameters_brute_depolarizing_with_vd", "rb"))
+
+        # Number of data points
+        num_dat = len(res)
+        # Store the optimal alpha angles for each data point in a list
+        alpha = [res[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta = [res[str(i)][1][0][1] for i in range(num_dat)]
+        # Store the unmitigated approximation ratio in a list
+        m_approxr = [res[str(i)][1][1] / self.min_cost for i in range(num_dat)]
+        # Store all error-data points in a list
+        x = [res[str(i)][0] for i in range(num_dat)]
+
+        res = pickle.load(open(self.path + "qaoa_variance_depolarizing", "rb"))
+        var = [res[str(i)][1] for i in range(num_dat)]
+        m_var = [res[str(i)][2] for i in range(num_dat)]
+
+        # Simulate QAOA with depolarizing noise
+        approxr = []
+        for i in range(num_dat):
+            if x[i] == 0:
+                rho = self.obj.simulate_qaoa(
+                    (alpha[i], beta[i]), with_noise=None)
+            else:
+                rho = self.obj.simulate_qaoa(
+                    (alpha[i], beta[i]), with_noise=DepolarizingChannel(p=x[i]))
+            # Calculate the mitigated cost
+            cost = self.obj.unmitigated_cost(rho)
+            # Calculate the mitigated approximation ratio
+            approxr.append(cost / self.min_cost)
+
+        return approxr, m_approxr, var, m_var
+
     def get_angles(self):
         # Load the results for depolarizing noise
         res_dep = pickle.load(
             open(self.path + "qaoa_parameters_brute_depolarizing", "rb"))
         # Load the results for dephasing noise
         res_z = pickle.load(
-            open(self.path + "qaoa_parameters_brute_dephasing", "rb"))
+            open(self.path + "qaoa_parameters_brute_dephasing_depolarizing", "rb"))
+
+        # Number of data points
+        num_dat = len(res_dep)
+
+        # Store the optimal alpha angles for each data point in a list
+        alpha_dep = [res_dep[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta_dep = [res_dep[str(i)][1][0][1] for i in range(num_dat)]
+
+        # Store the optimal alpha angles for each data point in a list
+        alpha_z = [res_z[str(i)][1][0][0] for i in range(num_dat)]
+        # Store the optimal beta angles for each data point in a list
+        beta_z = [res_z[str(i)][1][0][1] for i in range(num_dat)]
+
+        return alpha_dep, beta_dep, alpha_z, beta_z
+
+    def get_vd_angles(self):
+        # Load the results for depolarizing noise
+        res_dep = pickle.load(
+            open(self.path + "qaoa_parameters_brute_depolarizing_with_vd", "rb"))
+        # Load the results for dephasing noise
+        res_z = pickle.load(
+            open(self.path + "qaoa_parameters_brute_dephasing_with_vd", "rb"))
 
         # Number of data points
         num_dat = len(res_dep)
