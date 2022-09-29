@@ -9,14 +9,14 @@ from module import MyClass, DepolarizingChannel, DephasingChannel
 class TestGraph(unittest.TestCase):
     def setUp(self) -> None:
         # Create a random graph
-        graph = networkx.generators.random_graphs.erdos_renyi_graph(n=4, p=0.5)
+        graph = networkx.generators.random_graphs.erdos_renyi_graph(n=5, p=0.5)
         # Create object
         self.obj = MyClass(graph)
         self.num_nodes = len(graph.nodes)
         # Prepare a mixed state
         self.input = numpy.diag(self.obj.mixed_state())
         # Try 3 different noise levels
-        self.p = [0, .25, .5]
+        self.p = [0, .1, .2]
         # Symmeterized version of the MaxCut Hamiltonian
         self.C_2 = 0
         self.qubits = cirq.LineQubit.range(2 * self.num_nodes + 1)
@@ -31,7 +31,7 @@ class TestGraph(unittest.TestCase):
     def tearDown(self) -> None:
         return super().tearDown()
 
-    def test_mitigated_cost_deppolarizing(self):
+    def test_mitigated_cost_depolarizing(self):
         for p in self.p:
             with self.subTest(p=p):
                 # Run virtual distillation
@@ -80,7 +80,7 @@ class TestGraph(unittest.TestCase):
     def test_mitigated_variance_dephasing(self):
         for p in self.p:
             with self.subTest(p=p):
-                var_predicted = 1 / (1 - p)**(2 * self.num_nodes) \
+                var_predicted = 1 / (1 - 2*p)**(2 * self.num_nodes) \
                     * self.obj.ideal_mitigated_variance(self.input)
                 # Run virtual distillation
                 rho_out = self.obj.simulate_virtual_distillation(

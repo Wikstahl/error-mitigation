@@ -4,7 +4,7 @@ import sympy
 import scipy
 import networkx
 
-__all__ = ["DepolarizingChannel", "DephasingChannel", "MyClass"]
+__all__ = ["DepolarizingChannel", "DephasingChannel", "MyClass", "drift"]
 
 
 class DepolarizingChannel(cirq.SingleQubitGate):
@@ -485,3 +485,34 @@ class MyClass(object):
         """
         Asqrtm = scipy.linalg.sqrtm(A)
         return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
+
+
+def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
+    """Computes the coherent mismatch, also known as drift.
+
+    Args:
+        A (numpy.ndarray): Pure state as density matrix
+        B (numpy.ndarray): Density matrix
+
+    Returns:
+        float: drift
+    """
+    # diagonalize A
+    eValues, eVectors = numpy.linalg.eigh(A)
+    # sort the eigenvalues and the corresponding eigenvectors in descending order
+    idx = eValues.argsort()
+    eValues = eValues[idx]
+    eVectors = eVectors[:, idx]
+    # retrive the dominant eigenvector
+    psi = eVectors[:, -1]
+
+    # diagonalize B
+    eValues, eVectors = numpy.linalg.eigh(B)
+    # sort the eigenvalues and the corresponding eigenvectors in descending order
+    idx = eValues.argsort()
+    eValues = eValues[idx]
+    eVectors = eVectors[:, idx]
+    # retrive the dominant eigenvector
+    dom = eVectors[:, -1]
+    fidelity = abs(numpy.vdot(psi, dom))**2
+    return 1 - fidelity
