@@ -37,7 +37,7 @@ for idx in range(30):
         x0_with_vd = res_with_vd.x
         # Save result to dict
         data[str(key)] = (p, res)
-        data_with_vd[str(key)] = (p, res)
+        data_with_vd[str(key)] = (p, res_with_vd)
 
     # Save results
     filename = path + "qaoa_parameters_minimize_depolarizing"

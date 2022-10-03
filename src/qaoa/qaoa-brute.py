@@ -16,11 +16,11 @@ if __name__ == '__main__':
         # Optimization bounds
         ranges = ((0, np.pi), (0, np.pi / 2))
         # Function to optimize
-        fun = obj.optimize_qaoa_with_vd
+        fun = obj.optimize_qaoa
         # Brute force on 100 x 100 grid
         res = brute(fun, ranges, Ns=100, full_output=True,
                     finish=minimize, workers=6)
         # Save results
-        filename = path + "qaoa_parameters_brute_with_vd"
+        filename = path + "qaoa_parameters_brute"
         with open(filename, 'wb') as f:
             pickle.dump(res, f)
