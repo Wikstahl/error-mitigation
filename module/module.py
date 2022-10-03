@@ -4,7 +4,55 @@ import sympy
 import scipy
 import networkx
 
-__all__ = ["DepolarizingChannel", "DephasingChannel", "MyClass", "drift"]
+__all__ = ["DepolarizingChannel", "DephasingChannel",
+           "MyClass", "drift", "fidelity"]
+
+
+def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
+    """Computes the fidelity between two density matrices.
+
+    Args:
+        A (numpy.ndarray): Density matrix
+        B (numpy.ndarray): Density matrix
+
+    Returns:
+        float: fidelity
+    """
+    Asqrtm = scipy.linalg.sqrtm(A)
+    return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
+
+
+def dominant_eigenvector(A: numpy.ndarray) -> numpy.ndarray:
+    """Returns the dominant eigenvector of a density matrix.
+
+    Args:
+        A (numpy.ndarray): Density matrix
+
+    Returns:
+        numpy.ndarray: Dominant eigenvector of A
+    """
+    # diagonalize A
+    eValues, eVectors = numpy.linalg.eigh(A)
+    # sort the eigenvalues and the corresponding eigenvectors in descending order
+    idx = eValues.argsort()
+    eValues = eValues[idx]
+    eVectors = eVectors[:, idx]
+    return eVectors[:, -1]
+
+
+def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
+    """Computes the coherent mismatch, also known as drift.
+
+    Args:
+        A (numpy.ndarray): Pure state as density matrix
+        B (numpy.ndarray): Density matrix
+
+    Returns:
+        float: drift
+    """
+    fidelity = abs(numpy.vdot(dominant_eigenvector(A),
+                              dominant_eigenvector(B)))**2
+    return 1 - fidelity
 
 
 class DepolarizingChannel(cirq.SingleQubitGate):
@@ -21,7 +69,7 @@ class DepolarizingChannel(cirq.SingleQubitGate):
         return True
 
     def _circuit_diagram_info_(self, args) -> str:
-        return f"D({self._p})"
+        return f"Lambda_Dep({self._p})"
 
 
 class DephasingChannel(cirq.SingleQubitGate):
@@ -37,7 +85,7 @@ class DephasingChannel(cirq.SingleQubitGate):
         return True
 
     def _circuit_diagram_info_(self, args) -> str:
-        return f"Lambda({self._p})"
+        return f"Lambda_Z({self._p})"
 
 
 class MyClass(object):
@@ -125,10 +173,10 @@ class MyClass(object):
 
         if with_noise != None:
             # Append a depolarzing channel after the RX-gate.
-            # Make the error probability 100 times smaller than the error rate
+            # Make the error probability 10 times smaller than the error rate
             # for two qubit gates
             circuit.append(DepolarizingChannel(
-                p=with_noise._p / 100).on_each(*qubits))
+                p=with_noise._p / 10).on_each(*qubits))
         return circuit
 
     def simulate_qaoa(self,
@@ -336,7 +384,7 @@ class MyClass(object):
             new_initial_state = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
             # Check that the new denstiy matrix is close to the original one
             # by computing the fidelity
-            f = self.fidelity(new_initial_state, initial_state)
+            f = fidelity(new_initial_state, initial_state)
             if (1 - f) > atol:
                 assert(
                     "Approximated density matrix is not close enough to the original one")
@@ -471,48 +519,3 @@ class MyClass(object):
         """
         rho = numpy.exp(-beta * self.cost)
         return rho / numpy.sum(rho)
-
-    @staticmethod
-    def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
-        """Computes the fidelity between two density matrices.
-
-        Args:
-            A (numpy.ndarray): Density matrix
-            B (numpy.ndarray): Density matrix
-
-        Returns:
-            float: fidelity
-        """
-        Asqrtm = scipy.linalg.sqrtm(A)
-        return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
-
-
-def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
-    """Computes the coherent mismatch, also known as drift.
-
-    Args:
-        A (numpy.ndarray): Pure state as density matrix
-        B (numpy.ndarray): Density matrix
-
-    Returns:
-        float: drift
-    """
-    # diagonalize A
-    eValues, eVectors = numpy.linalg.eigh(A)
-    # sort the eigenvalues and the corresponding eigenvectors in descending order
-    idx = eValues.argsort()
-    eValues = eValues[idx]
-    eVectors = eVectors[:, idx]
-    # retrive the dominant eigenvector
-    psi = eVectors[:, -1]
-
-    # diagonalize B
-    eValues, eVectors = numpy.linalg.eigh(B)
-    # sort the eigenvalues and the corresponding eigenvectors in descending order
-    idx = eValues.argsort()
-    eValues = eValues[idx]
-    eVectors = eVectors[:, idx]
-    # retrive the dominant eigenvector
-    dom = eVectors[:, -1]
-    fidelity = abs(numpy.vdot(psi, dom))**2
-    return 1 - fidelity
