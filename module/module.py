@@ -29,15 +29,17 @@ def dominant_eigenvector(A: numpy.ndarray) -> numpy.ndarray:
         A (numpy.ndarray): Density matrix
 
     Returns:
-        numpy.ndarray: Dominant eigenvector of A
+        numpy.ndarray: Dominant eigenvector of A as column vector
     """
+    # dimension of A
+    dims = A.shape
     # diagonalize A
     eValues, eVectors = numpy.linalg.eigh(A)
-    # sort the eigenvalues and the corresponding eigenvectors in descending order
-    idx = eValues.argsort()
-    eValues = eValues[idx]
-    eVectors = eVectors[:, idx]
-    return eVectors[:, -1]
+    # find the position of the largest eigenvalue
+    idx = numpy.argmax(eValues)
+    # retrive the dominant eigenvector and reshape it to a column vector
+    dom = numpy.reshape(eVectors[:, idx], (dims[0], 1))
+    return dom
 
 
 def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
@@ -50,9 +52,9 @@ def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
     Returns:
         float: drift
     """
-    fidelity = abs(numpy.vdot(dominant_eigenvector(A),
-                              dominant_eigenvector(B)))**2
-    return 1 - fidelity
+    dom = dominant_eigenvector(B)
+    fidelity = abs(numpy.conj(dom.T)@A@dom)
+    return 1 - float(fidelity)
 
 
 class DepolarizingChannel(cirq.SingleQubitGate):
