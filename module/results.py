@@ -33,7 +33,10 @@ class Results(object):
                 cost = res[str(idx)][1].fun
             # Calculate the mitigated approximation ratio
             approxr.append(cost / self.min_cost)
-        return approxr
+
+        res = pickle.load(open(self.path + "qaoa_variance_dephasing", "rb"))
+        var = [res[str(i)][1] for i in range(num_dat)]
+        return approxr, var
 
     def DephasingNoiseWithVD(self):
         # Load the results for dephasing noise
@@ -41,6 +44,7 @@ class Results(object):
             open(self.path + "qaoa_parameters_minimize_dephasing_with_vd", "rb"))
         # Number of data points
         num_dat = len(res)
+
         # Mitigated approximation ratio
         mitigated_approxr = []
         # Loop over all data points
@@ -51,7 +55,12 @@ class Results(object):
                 cost = res[str(idx)][1].fun
             # Calculate the mitigated approximation ratio
             mitigated_approxr.append(cost / self.min_cost)
-        return mitigated_approxr
+
+        res = pickle.load(
+            open(self.path + "qaoa_variance_dephasing_with_vd", "rb"))
+        m_var = [res[str(i)][1] for i in range(num_dat)]
+
+        return mitigated_approxr, m_var
 
     def DepolarizingNoise(self):
         # Load the results for dephasing noise
@@ -69,7 +78,10 @@ class Results(object):
                 cost = res[str(idx)][1].fun
             # Calculate the mitigated approximation ratio
             approxr.append(cost / self.min_cost)
-        return approxr
+
+        res = pickle.load(open(self.path + "qaoa_variance_depolarizing", "rb"))
+        var = [res[str(i)][1] for i in range(num_dat)]
+        return approxr, var
 
     def DepolarizingNoiseWithVD(self):
         # Load the results for dephasing noise
@@ -87,7 +99,11 @@ class Results(object):
                 cost = res[str(idx)][1].fun
             # Calculate the mitigated approximation ratio
             mitigated_approxr.append(cost / self.min_cost)
-        return mitigated_approxr
+
+        res = pickle.load(
+            open(self.path + "qaoa_variance_depolarizing_with_vd", "rb"))
+        m_var = [res[str(i)][1] for i in range(num_dat)]
+        return mitigated_approxr, m_var
 
     def get_angles(self):
         # Load the results for depolarizing noise
