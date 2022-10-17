@@ -4,7 +4,57 @@ import sympy
 import scipy
 import networkx
 
-__all__ = ["DepolarizingChannel", "DephasingChannel", "MyClass"]
+__all__ = ["DepolarizingChannel", "DephasingChannel",
+           "MyClass", "drift", "fidelity"]
+
+
+def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
+    """Computes the fidelity between two density matrices.
+
+    Args:
+        A (numpy.ndarray): Density matrix
+        B (numpy.ndarray): Density matrix
+
+    Returns:
+        float: fidelity
+    """
+    Asqrtm = scipy.linalg.sqrtm(A)
+    return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
+
+
+def dominant_eigenvector(A: numpy.ndarray) -> numpy.ndarray:
+    """Returns the dominant eigenvector of a density matrix.
+
+    Args:
+        A (numpy.ndarray): Density matrix
+
+    Returns:
+        numpy.ndarray: Dominant eigenvector of A as column vector
+    """
+    # dimension of A
+    dims = A.shape
+    # diagonalize A
+    eValues, eVectors = numpy.linalg.eigh(A)
+    # find the position of the largest eigenvalue
+    idx = numpy.argmax(eValues)
+    # retrive the dominant eigenvector and reshape it to a column vector
+    dom = numpy.reshape(eVectors[:, idx], (dims[0], 1))
+    return dom
+
+
+def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
+    """Computes the coherent mismatch, also known as drift.
+
+    Args:
+        A (numpy.ndarray): Pure state as density matrix
+        B (numpy.ndarray): Density matrix
+
+    Returns:
+        float: drift
+    """
+    dom = dominant_eigenvector(B)
+    fidelity = abs(numpy.conj(dom.T)@A@dom)
+    return 1 - float(fidelity)
 
 
 class DepolarizingChannel(cirq.SingleQubitGate):
@@ -12,7 +62,7 @@ class DepolarizingChannel(cirq.SingleQubitGate):
         self._p = p
 
     def _mixture_(self):
-        ps = [1.0 - 3 * self._p / 4, self._p / 4, self._p / 4, self._p / 4]
+        ps = [1.0 - self._p, self._p / 3, self._p / 3, self._p / 3]
         ops = [cirq.unitary(cirq.I), cirq.unitary(cirq.X),
                cirq.unitary(cirq.Y), cirq.unitary(cirq.Z)]
         return tuple(zip(ps, ops))
@@ -21,7 +71,7 @@ class DepolarizingChannel(cirq.SingleQubitGate):
         return True
 
     def _circuit_diagram_info_(self, args) -> str:
-        return f"D({self._p})"
+        return f"Lambda_Dep({self._p})"
 
 
 class DephasingChannel(cirq.SingleQubitGate):
@@ -29,7 +79,7 @@ class DephasingChannel(cirq.SingleQubitGate):
         self._p = p
 
     def _mixture_(self):
-        ps = [1.0 - self._p / 2, self._p / 2]
+        ps = [1.0 - self._p, self._p]
         ops = [cirq.unitary(cirq.I), cirq.unitary(cirq.Z)]
         return tuple(zip(ps, ops))
 
@@ -37,7 +87,7 @@ class DephasingChannel(cirq.SingleQubitGate):
         return True
 
     def _circuit_diagram_info_(self, args) -> str:
-        return f"Lambda({self._p})"
+        return f"Lambda_Z({self._p})"
 
 
 class MyClass(object):
@@ -102,10 +152,6 @@ class MyClass(object):
         qubits = cirq.LineQubit.range(self.num_nodes)  # Create qubits
 
         circuit = cirq.Circuit()  # Initialize circuit
-        circuit.append(cirq.H(q) for q in qubits)  # Add Hadamard
-
-        if with_noise != None:
-            circuit.append(with_noise.on_each(*qubits))
 
         for (u, v) in self.graph.edges:
             circuit.append(
@@ -128,8 +174,11 @@ class MyClass(object):
         )
 
         if with_noise != None:
-            # Append a depolarzing channel after the RX-gate
-            circuit.append(DepolarizingChannel(p=with_noise._p).on_each(*qubits))
+            # Append a depolarzing channel after the RX-gate.
+            # Make the error probability 10 times smaller than the error rate
+            # for two qubit gates
+            circuit.append(DepolarizingChannel(
+                p=with_noise._p / 10).on_each(*qubits))
         return circuit
 
     def simulate_qaoa(self,
@@ -150,9 +199,9 @@ class MyClass(object):
 
         circuit = self.qaoa_circuit(with_noise=with_noise)
 
-        # prepare initial state |00...0>
-        initial_state = numpy.zeros(2**self.num_nodes)
-        initial_state[0] = 1
+        # prepare initial state |++...+>
+        initial_state = 1 / numpy.sqrt(2**self.num_nodes) * \
+            numpy.ones(2**self.num_nodes)
 
         # Density matrix simulator
         sim = cirq.DensityMatrixSimulator(
@@ -203,6 +252,7 @@ class MyClass(object):
             error_channel = args[0]
             # Get the which type of noise we are dealing with
             noise_type = type(error_channel).__name__
+            # Simulate QAOA with errors
             rho = self.simulate_qaoa(
                 params=x,
                 with_noise=error_channel
@@ -216,6 +266,7 @@ class MyClass(object):
                 # Compute the mitigated expectation value
                 expval = self.mitigated_cost(rho, 0)
         else:
+            # Simulate QAOA without errors
             rho = self.simulate_qaoa(
                 params=x
             )
@@ -259,7 +310,7 @@ class MyClass(object):
             for u, v in self.graph.edges:
                 zz = cirq.PauliString(cirq.Z(qubits[u])) \
                     * cirq.PauliString(cirq.Z(qubits[v]))
-                expval_zz += (1 - p)**2 * \
+                expval_zz += (1 - 4 * p / 3)**2 * \
                     numpy.trace(zz.matrix(qubits)@rho_sq).real
             m_cost = 1 / 2 * (expval_zz - self.num_edges)
         return m_cost
@@ -335,7 +386,7 @@ class MyClass(object):
             new_initial_state = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
             # Check that the new denstiy matrix is close to the original one
             # by computing the fidelity
-            f = self.fidelity(new_initial_state, initial_state)
+            f = fidelity(new_initial_state, initial_state)
             if (1 - f) > atol:
                 assert(
                     "Approximated density matrix is not close enough to the original one")
@@ -470,17 +521,3 @@ class MyClass(object):
         """
         rho = numpy.exp(-beta * self.cost)
         return rho / numpy.sum(rho)
-
-    @staticmethod
-    def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
-        """Computes the fidelity between two density matrices.
-
-        Args:
-            A (numpy.ndarray): Density matrix
-            B (numpy.ndarray): Density matrix
-
-        Returns:
-            float: fidelity
-        """
-        Asqrtm = scipy.linalg.sqrtm(A)
-        return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2

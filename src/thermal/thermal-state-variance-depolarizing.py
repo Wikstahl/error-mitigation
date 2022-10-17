@@ -16,7 +16,7 @@ for idx in range(30):
     # Create mixed state
     rho_in = np.diag(obj.mixed_state())
     # Loop over noise levels
-    for key, p in enumerate(np.linspace(0, .5, 26)):
+    for key, p in enumerate(np.linspace(0, .25, 13)):
         # Simulate virtual distillation
         rho_out = obj.simulate_virtual_distillation(
             rho_in,
@@ -26,6 +26,6 @@ for idx in range(30):
         mv = obj.mitigated_variance(rho_out)
         data[str(key)] = tuple([p, mv])
     # Save results
-    filename = path + "thermal_variance_depolarizing"
+    filename = path + "thermal_variance_equal_error_depolarizing"
     with open(filename, 'wb') as f:
         pickle.dump(data, f)
