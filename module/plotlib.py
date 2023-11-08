@@ -7,6 +7,7 @@ import matplotlib.legend as mlegend
 import seaborn as sns
 from string import ascii_lowercase
 
+
 def edge_change(cs, cbar=None):
     '''
     Helper function to settle the bug that a contour plot saved as pdf shows
@@ -406,8 +407,8 @@ def update_settings(usetex=False, bw=False, style='APS', settings=None):
               'savefig.dpi': 600,  # 100 dpi  is default
               'errorbar.capsize': 3,  # as in the classic version
               'figure.figsize': (width[style], width[style] / gr),
-              'font.family': 'serif',
-              'font.serif': 'Computer Modern Roman',
+              'font.family': 'lmodern',
+              'font.sans-serif': 'lmodern'
               }
 
     if bw is True:
@@ -422,10 +423,10 @@ def update_settings(usetex=False, bw=False, style='APS', settings=None):
                      'text.usetex': True,
                      }
 
-        plt.rcParams['text.latex.preamble'] = r'\usepackage{siunitx} \usepackage{amsmath} \usepackage{physics} \setlength{\jot}{0ex}'
+        plt.rcParams['text.latex.preamble'] = r'\usepackage{lmodern} \usepackage{siunitx} \usepackage{amsmath} \usepackage{physics} \setlength{\jot}{0ex}'
 
-        plt.rcParams['font.family'] = ['serif']
-        plt.rcParams['font.serif'] = ['Computer Modern Roman']
+        plt.rcParams['font.family'] = ['lmodern']
+        plt.rcParams['font.sans-serif'] = ['lmodern']
         plt.rcParams.update(texparams)
 
     if settings:

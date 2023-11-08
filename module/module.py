@@ -3,8 +3,11 @@ import cirq
 import sympy
 import scipy
 import networkx
+from cirq.ops import raw_types
+from cirq import value
+from typing import Iterable
 
-__all__ = ["DepolarizingChannel", "DephasingChannel",
+__all__ = ["DepolarizingChannel", "DephasingChannel", "AmplitudeDampingChannel",
            "MyClass", "drift", "fidelity"]
 
 
@@ -57,9 +60,12 @@ def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
     return 1 - float(fidelity)
 
 
-class DepolarizingChannel(cirq.SingleQubitGate):
+class DepolarizingChannel(raw_types.Gate):
     def __init__(self, p: float) -> None:
         self._p = p
+
+    def _num_qubits_(self) -> int:
+        return 1
 
     def _mixture_(self):
         ps = [1.0 - self._p, self._p / 3, self._p / 3, self._p / 3]
@@ -74,9 +80,12 @@ class DepolarizingChannel(cirq.SingleQubitGate):
         return f"Lambda_Dep({self._p})"
 
 
-class DephasingChannel(cirq.SingleQubitGate):
+class DephasingChannel(raw_types.Gate):
     def __init__(self, p: float) -> None:
         self._p = p
+
+    def _num_qubits_(self) -> int:
+        return 1
 
     def _mixture_(self):
         ps = [1.0 - self._p, self._p]
@@ -89,6 +98,25 @@ class DephasingChannel(cirq.SingleQubitGate):
     def _circuit_diagram_info_(self, args) -> str:
         return f"Lambda_Z({self._p})"
 
+class AmplitudeDampingChannel(raw_types.Gate):
+    def __init__(self, p: float) -> None:
+        self._p = p
+
+    def _num_qubits_(self) -> int:
+        return 1
+
+    def _kraus_(self) -> Iterable[numpy.ndarray]:
+        K1 = numpy.array([[1,0],
+                          [0,numpy.sqrt(1-self._p)]])
+        K2 = numpy.array([[0,numpy.sqrt(self._p)],
+                          [0,0]])
+        return [K1, K2]
+
+    def _has_kraus_(self) -> bool:
+        return True
+
+    def _circuit_diagram_info_(self, args) -> str:
+        return f"AD({self._p})"
 
 class MyClass(object):
     def __init__(self, graph: networkx.Graph) -> None:
@@ -152,15 +180,14 @@ class MyClass(object):
         qubits = cirq.LineQubit.range(self.num_nodes)  # Create qubits
 
         circuit = cirq.Circuit()  # Initialize circuit
-
         for (u, v) in self.graph.edges:
             circuit.append(
                 # This gate is equivalent to the RZZ-gate
                 cirq.ops.ZZPowGate(
                     exponent=(alpha / numpy.pi),
-                    global_shift=-.5)(qubits[u], qubits[v])
-            )
-            if with_noise != None:
+                    global_shift=-.5)(qubits[u], qubits[v]) # type: ignore
+                )
+            if with_noise is not None:
                 circuit.append(with_noise.on_each(qubits[u], qubits[v]))
 
         circuit.append(
@@ -172,13 +199,15 @@ class MyClass(object):
                     global_shift=-.5)(q) for q in qubits
             )
         )
-
-        if with_noise != None:
-            # Append a depolarzing channel after the RX-gate.
-            # Make the error probability 10 times smaller than the error rate
-            # for two qubit gates
-            circuit.append(DepolarizingChannel(
-                p=with_noise._p / 10).on_each(*qubits))
+        if with_noise is not None:
+            # Make the error probability 10 times smaller than the error rate for two qubit gates.
+            # Check the type of noise and append the appropriate channel.
+            if isinstance(with_noise, DephasingChannel):
+                # Append DepolarizingChannel after the RX-gate
+                circuit.append(DepolarizingChannel(p=(with_noise._p / 10)).on_each(*qubits))
+            elif isinstance(with_noise, AmplitudeDampingChannel):
+                # Append AmplitudeDampingChannel instead of DepolarizingChannel after the RX-gate
+                circuit.append(AmplitudeDampingChannel(p=with_noise._p).on_each(*qubits))
         return circuit
 
     def simulate_qaoa(self,
@@ -265,6 +294,11 @@ class MyClass(object):
             elif noise_type == "DephasingChannel":
                 # Compute the mitigated expectation value
                 expval = self.mitigated_cost(rho, 0)
+            elif noise_type == "AmplitudeDampingChannel":
+                # Error probability
+                p = error_channel._p
+                # Compute the mitigated expectation value
+                expval = self.mitigated_cost_amplitude_damping(rho, p)
         else:
             # Simulate QAOA without errors
             rho = self.simulate_qaoa(
@@ -284,6 +318,37 @@ class MyClass(object):
             float: Unmitigated cost
         """
         return numpy.trace(self.cost * rho).real
+    
+    def mitigated_cost_amplitude_damping(self, rho: numpy.ndarray, p: float = 0) -> float:
+        # Run virtual distillation
+        rho_out = self.simulate_virtual_distillation(
+            rho,
+            with_noise=AmplitudeDampingChannel(p=p)
+        )
+        # Costs
+        C = self.cost
+
+        # Dimension
+        dim = 2**self.num_nodes
+
+        # Symmeterized cost
+        C_2 = 1 / 2 * numpy.kron(numpy.ones(2), numpy.kron(C, numpy.ones(dim))) \
+            + 1 / 2 * numpy.kron(numpy.ones(2), numpy.kron(numpy.ones(dim), C))
+
+        # Pauli X
+        x = numpy.array([[0, 1], [1, 0]])
+
+        # Observable for ancilla
+        X_0 = scipy.sparse.kron(x, scipy.sparse.identity(dim**2))
+        _X = (X_0@rho_out)
+
+        # expectation value of numerator
+        numerator = numpy.trace(C_2 * _X)
+        # expectation value of denominator
+        denominator = numpy.trace(_X)
+
+        mitigated_cost = (numerator / denominator)
+        return mitigated_cost
 
     def mitigated_cost(self, rho: numpy.ndarray, p: float = 0) -> float:
         """Calculates the mitigated cost of virtual distillation
@@ -309,7 +374,7 @@ class MyClass(object):
             expval_zz = 0
             for u, v in self.graph.edges:
                 zz = cirq.PauliString(cirq.Z(qubits[u])) \
-                    * cirq.PauliString(cirq.Z(qubits[v]))
+                   * cirq.PauliString(cirq.Z(qubits[v]))
                 expval_zz += (1 - 4 * p / 3)**2 * \
                     numpy.trace(zz.matrix(qubits)@rho_sq).real
             m_cost = 1 / 2 * (expval_zz - self.num_edges)
@@ -378,6 +443,7 @@ class MyClass(object):
         circuit simulator we have to approximate the density matrix to a valid
         one.
         """
+        """
         atol = 1e-7
         eVals, eVecs = numpy.linalg.eigh(initial_state)
         if (eVals > -atol).all() == False:
@@ -393,7 +459,7 @@ class MyClass(object):
             else:
                 # Replace the original density matrix with the new one
                 initial_state = new_initial_state
-
+        """
         # Simulating with the density matrix simulator.
         sim = cirq.DensityMatrixSimulator()
 

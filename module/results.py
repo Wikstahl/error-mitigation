@@ -17,6 +17,29 @@ class Results(object):
         # Get optimal cost
         self.min_cost = min(self.obj.cost)
 
+    def noisyqaoa_perfectvd(self):
+        # Load the results for dephasing noise
+        res = pickle.load(
+            open(self.path + "qaoa_parameters_minimize_dephasing", "rb"))
+        
+        # Number of data points
+        num_dat = len(res)
+        # Mitigated approximation ratio
+        approxr = []
+
+        # Loop over all data points
+        for idx in range(num_dat):
+            error_p = res[str(idx)][0] # error probability
+            opt_res = res[str(idx)][1] # optimization results
+            if idx == 0:
+                params = opt_res[0]
+            else:
+                params = tuple(opt_res.x)
+            rho = self.obj.simulate_qaoa(params, DephasingChannel(error_p))
+            
+            # perform virtual distillation
+        return approxr
+
     def DephasingNoise(self):
         # Load the results for dephasing noise
         res = pickle.load(
