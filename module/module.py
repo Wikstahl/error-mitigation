@@ -207,7 +207,7 @@ class MyClass(object):
                 circuit.append(DepolarizingChannel(p=(with_noise._p / 10)).on_each(*qubits))
             elif isinstance(with_noise, AmplitudeDampingChannel):
                 # Append AmplitudeDampingChannel instead of DepolarizingChannel after the RX-gate
-                circuit.append(AmplitudeDampingChannel(p=with_noise._p).on_each(*qubits))
+                circuit.append(AmplitudeDampingChannel(p=with_noise._p / 10).on_each(*qubits))
         return circuit
 
     def simulate_qaoa(self,
