@@ -3,7 +3,7 @@ import random
 import networkx
 import numpy
 import cirq
-from module import MyClass, DepolarizingChannel, DephasingChannel, drift, fidelity
+from module import MyClass, DepolarizingChannel, DephasingChannel, AmplitudeDampingChannel, drift, fidelity, average_gate_fidelity
 
 
 class TestGraph(unittest.TestCase):
@@ -104,6 +104,18 @@ class TestGraph(unittest.TestCase):
         var_mitigated = self.obj.mitigated_variance(rho_out)
         self.assertAlmostEqual(round(var_mitigated),
                                round(var_unmitigated / 2))
+
+
+class TestAverageGateFidelity(unittest.TestCase):
+    def test_channels_fidelity(self):
+        p = 0.1  # Error probability
+        fidelity_dephasing = average_gate_fidelity(DephasingChannel, p)
+        fidelity_depolarizing = average_gate_fidelity(DepolarizingChannel, p)
+        fidelity_amplitude_damping = average_gate_fidelity(AmplitudeDampingChannel, p)
+
+        # Check if the fidelities are equal
+        self.assertAlmostEqual(fidelity_dephasing, fidelity_depolarizing, places=5)
+        self.assertAlmostEqual(fidelity_dephasing, fidelity_amplitude_damping, places=5)
 
 
 class TestFunctions(unittest.TestCase):

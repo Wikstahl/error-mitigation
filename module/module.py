@@ -8,7 +8,58 @@ from cirq import value
 from typing import Iterable
 
 __all__ = ["DepolarizingChannel", "DephasingChannel", "AmplitudeDampingChannel",
-           "MyClass", "drift", "fidelity"]
+           "MyClass", "drift", "fidelity", "average_gate_fidelity"]
+
+def average_gate_fidelity(channel: raw_types.Gate, p: float) -> float:
+    """
+    Calculate the average gate fidelity of a quantum channel using quantum process tomography.
+
+    This function applies the specified quantum channel to each of the Pauli X, Y, and Z operators,
+    simulates the resulting quantum states, and then calculates the average gate fidelity based on
+    these simulations.
+
+    Args:
+        channel (raw_types.Gate): A quantum channel (a Cirq gate) that represents the noise model.
+        p (float): The error probability parameter for the quantum channel.
+
+    Returns:
+        float: Average gate fidelity
+    """
+
+    # List of Pauli matrices
+    paulis = [cirq.unitary(cirq.X), cirq.unitary(cirq.Y), cirq.unitary(cirq.Z)]
+    
+    # Initialize density matrix simulator
+    simulator = cirq.DensityMatrixSimulator(split_untangled_states=True)
+    
+    # Initialize a single qubit
+    qubit = cirq.LineQubit.range(1)
+    
+    F = 0
+    # Iterate over each Pauli matrix
+    for i in range(len(paulis)):
+        # Compute eigenvalues and eigenvectors of the Pauli matrix
+        eVals, eVecs = scipy.linalg.eigh(paulis[i])
+        
+        # Iterate over the eigenvalues (and corresponding eigenvectors)
+        for j in range(len(eVals)):
+            # Prepare the initial state corresponding to the eigenvector
+            initial_state = eVecs[:,j]
+
+            # Create a circuit with the channel applied to the qubit
+            circuit = cirq.Circuit(channel(p).on_each(*qubit))
+
+            # Simulate the circuit starting from the initial state
+            result = simulator.simulate(circuit, initial_state=initial_state, qubit_order=qubit)
+
+            # Extract the final state density matrix
+            rho = result.final_density_matrix
+        
+            # Calculate the inner product (trace) of the final state with the Pauli matrix
+            F += eVals[j] * numpy.trace(paulis[i] @ rho)
+
+    # Calculate the average gate fidelity from the coefficients
+    return (1/2 + 1/12 * F).real
 
 
 def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
@@ -100,7 +151,9 @@ class DephasingChannel(raw_types.Gate):
 
 class AmplitudeDampingChannel(raw_types.Gate):
     def __init__(self, p: float) -> None:
-        self._p = p
+        # Set the error probability such that the average gate fidelity 
+        # is the same between all error-channels
+        self._p = 4*(numpy.sqrt(1-p)+p-1)
 
     def _num_qubits_(self) -> int:
         return 1

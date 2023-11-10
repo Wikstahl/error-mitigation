@@ -127,6 +127,46 @@ class Results(object):
             open(self.path + "qaoa_variance_depolarizing_with_vd", "rb"))
         m_var = [res[str(i)][1] for i in range(num_dat)]
         return mitigated_approxr, m_var
+    
+    def AmplitudeDampingNoise(self):
+        # Load the results for dephasing noise
+        res = pickle.load(
+            open(self.path + "qaoa_parameters_minimize_amplitude_damping", "rb"))
+        # Number of data points
+        num_dat = len(res)
+        # Mitigated approximation ratio
+        approxr = []
+        # Loop over all data points
+        for idx in range(num_dat):
+            if idx == 0:
+                cost = res[str(idx)][1][1]
+            else:
+                cost = res[str(idx)][1].fun
+            # Calculate the mitigated approximation ratio
+            approxr.append(cost / self.min_cost)
+
+        var = []
+        return approxr, var
+    
+    def AmplitudeDampingNoiseWithVD(self):
+        # Load the results for dephasing noise
+        res = pickle.load(
+            open(self.path + "qaoa_parameters_minimize_amplitude_damping_with_vd", "rb"))
+        # Number of data points
+        num_dat = len(res)
+        # Mitigated approximation ratio
+        mitigated_approxr = []
+        # Loop over all data points
+        for idx in range(num_dat):
+            if idx == 0:
+                cost = res[str(idx)][1][1]
+            else:
+                cost = res[str(idx)][1].fun
+            # Calculate the mitigated approximation ratio
+            mitigated_approxr.append(cost / self.min_cost)
+
+        m_var = []
+        return mitigated_approxr, m_var
 
     def get_angles(self):
         # Load the results for depolarizing noise
