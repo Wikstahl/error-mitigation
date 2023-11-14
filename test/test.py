@@ -30,6 +30,13 @@ class TestGraph(unittest.TestCase):
 
     def tearDown(self) -> None:
         return super().tearDown()
+    
+    def test_mitigate_cost_explicit(self):
+        for p in self.p:
+            with self.subTest(p=p):
+                mitigated_cost_explicit = self.obj.mitigated_cost_explicit(rho=self.input, with_noise=DepolarizingChannel(p=p))
+                mitigated_cost = self.obj.mitigated_cost(rho=self.input, p=p)
+                self.assertAlmostEqual(mitigated_cost_explicit, mitigated_cost, places=6)
 
     def test_mitigated_cost_depolarizing(self):
         for p in self.p:
@@ -109,9 +116,9 @@ class TestGraph(unittest.TestCase):
 class TestAverageGateFidelity(unittest.TestCase):
     def test_channels_fidelity(self):
         p = 0.1  # Error probability
-        fidelity_dephasing = average_gate_fidelity(DephasingChannel, p)
-        fidelity_depolarizing = average_gate_fidelity(DepolarizingChannel, p)
-        fidelity_amplitude_damping = average_gate_fidelity(AmplitudeDampingChannel, p)
+        fidelity_dephasing = average_gate_fidelity(DephasingChannel, p) # type: ignore
+        fidelity_depolarizing = average_gate_fidelity(DepolarizingChannel, p) # type: ignore
+        fidelity_amplitude_damping = average_gate_fidelity(AmplitudeDampingChannel, p) # type: ignore
 
         # Check if the fidelities are equal
         self.assertAlmostEqual(fidelity_dephasing, fidelity_depolarizing, places=5)
