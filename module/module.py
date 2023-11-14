@@ -3,6 +3,7 @@ import cirq
 import sympy
 import scipy
 import networkx
+from scipy import sparse
 from cirq.ops import raw_types
 from cirq import value
 from typing import Iterable
@@ -39,7 +40,7 @@ def average_gate_fidelity(channel: raw_types.Gate, p: float) -> float:
     # Iterate over each Pauli matrix
     for i in range(len(paulis)):
         # Compute eigenvalues and eigenvectors of the Pauli matrix
-        eVals, eVecs = scipy.linalg.eigh(paulis[i])
+        eVals, eVecs = scipy.linalg.eigh(paulis[i]) # type: ignore
         
         # Iterate over the eigenvalues (and corresponding eigenvectors)
         for j in range(len(eVals)):
@@ -47,7 +48,7 @@ def average_gate_fidelity(channel: raw_types.Gate, p: float) -> float:
             initial_state = eVecs[:,j]
 
             # Create a circuit with the channel applied to the qubit
-            circuit = cirq.Circuit(channel(p).on_each(*qubit))
+            circuit = cirq.Circuit(channel(p).on_each(*qubit)) # type: ignore
 
             # Simulate the circuit starting from the initial state
             result = simulator.simulate(circuit, initial_state=initial_state, qubit_order=qubit)
@@ -72,8 +73,8 @@ def fidelity(A: numpy.ndarray, B: numpy.ndarray) -> float:
     Returns:
         float: fidelity
     """
-    Asqrtm = scipy.linalg.sqrtm(A)
-    return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2
+    Asqrtm = scipy.linalg.sqrtm(A) # type: ignore
+    return (numpy.trace(scipy.linalg.sqrtm(Asqrtm@B@Asqrtm)).real)**2 # type: ignore
 
 
 def dominant_eigenvector(A: numpy.ndarray) -> numpy.ndarray:
@@ -216,11 +217,11 @@ class MyClass(object):
         return 1 / 2 * (numpy.diag(s@numpy.triu(A)@s.T) - M)
 
     def qaoa_circuit(self,
-                     with_noise: cirq.SingleQubitGate = None) -> cirq.Circuit:
+                     with_noise: raw_types.Gate = None) -> cirq.Circuit: # type: ignore
         """Creates the first iteration of the QAOA circuit
 
         Args:
-            with_noise (cirq.SingleQubitGate, optional): Error channel to be
+            with_noise (raw_types.Gate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
         Returns:
@@ -237,7 +238,7 @@ class MyClass(object):
             circuit.append(
                 # This gate is equivalent to the RZZ-gate
                 cirq.ops.ZZPowGate(
-                    exponent=(alpha / numpy.pi),
+                    exponent=(alpha / scipy.pi), # type: ignore
                     global_shift=-.5)(qubits[u], qubits[v]) # type: ignore
                 )
             if with_noise is not None:
@@ -248,7 +249,7 @@ class MyClass(object):
                 # This gate is equivalent to the RX-gate
                 # That is why we multiply by two in the exponent
                 cirq.ops.XPowGate(
-                    exponent=(2 * beta / numpy.pi),
+                    exponent=(2 * beta / numpy.pi), # type: ignore
                     global_shift=-.5)(q) for q in qubits
             )
         )
@@ -265,12 +266,12 @@ class MyClass(object):
 
     def simulate_qaoa(self,
                       params: tuple,
-                      with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
+                      with_noise: raw_types.Gate = None) -> numpy.ndarray: # type: ignore
         """Simulates the p=1 QAOA circuit of a graph
 
         Args:
             params (tuple): Variational parameters
-            with_noise (cirq.SingleQubitGate, optional): Error channel to be
+            with_noise (raw_types.Gate, optional): Error channel to be
                 appended fter every gate. Defaults to None.
 
         Returns:
@@ -312,7 +313,7 @@ class MyClass(object):
         if args:
             rho = self.simulate_qaoa(
                 params=x,
-                with_noise=args[0]
+                with_noise=args[0] # type: ignore
             )
         else:
             rho = self.simulate_qaoa(
@@ -330,6 +331,7 @@ class MyClass(object):
         Returns:
             float: Expectation value
         """
+        expval = 0  # Initialize expval to a default value
         if args:
             error_channel = args[0]
             # Get the which type of noise we are dealing with
@@ -337,21 +339,19 @@ class MyClass(object):
             # Simulate QAOA with errors
             rho = self.simulate_qaoa(
                 params=x,
-                with_noise=error_channel
+                with_noise=error_channel # type: ignore
             )
             if noise_type == "DepolarizingChannel":
                 # Error probability
-                p = error_channel._p
+                p = error_channel._p # type: ignore
                 # Compute the mitigated expectation value
                 expval = self.mitigated_cost(rho, p)
             elif noise_type == "DephasingChannel":
                 # Compute the mitigated expectation value
                 expval = self.mitigated_cost(rho, 0)
             elif noise_type == "AmplitudeDampingChannel":
-                # Error probability
-                p = error_channel._p
                 # Compute the mitigated expectation value
-                expval = self.mitigated_cost_amplitude_damping(rho, p)
+                expval = self.mitigated_cost_explicit(rho, error_channel) # type: ignore
         else:
             # Simulate QAOA without errors
             rho = self.simulate_qaoa(
@@ -372,34 +372,52 @@ class MyClass(object):
         """
         return numpy.trace(self.cost * rho).real
     
-    def mitigated_cost_amplitude_damping(self, rho: numpy.ndarray, p: float = 0) -> float:
-        # Run virtual distillation
+    def mitigated_cost_explicit(self, rho: numpy.ndarray, with_noise: raw_types.Gate = None) -> float: # type: ignore
+        """Calculates the mitigated cost explicitly of a quantum state subject to a noise channel.
+        The function applies virtual distillation to the given quantum state `rho`,
+        simulates the effect of noise, and computes the mitigated cost.
+        The mitigated cost is obtained using a symmetrized cost matrix and an observable
+        for the ancilla qubit.
+
+        Args:
+            with_noise (raw_types.Gate): Noise channel (default is None).
+            rho (numpy.ndarray): The input density matrix representing the quantum state before noise application.
+            p (float, optional): The probability parameter for the amplitude damping channel (default is 0).
+
+        Returns:
+            mitigated cost (float): The mitigated cost after applying noise and virtual distillation to the quantum state.
+        """
+        # Run virtual distillation with channel noise applied
         rho_out = self.simulate_virtual_distillation(
             rho,
-            with_noise=AmplitudeDampingChannel(p=p)
+            with_noise=with_noise
         )
-        # Costs
+        
+        # Retrieve the cost function matrix from the instance
         C = self.cost
 
-        # Dimension
+        # Calculate the dimension of the system based on the number of nodes
         dim = 2**self.num_nodes
 
-        # Symmeterized cost
+        # Construct a symmetrized cost matrix by using the Kronecker product
+        # This represents the cost for both the system and an ancilla qubit
         C_2 = 1 / 2 * numpy.kron(numpy.ones(2), numpy.kron(C, numpy.ones(dim))) \
             + 1 / 2 * numpy.kron(numpy.ones(2), numpy.kron(numpy.ones(dim), C))
 
-        # Pauli X
+        # Define the Pauli X matrix
         x = numpy.array([[0, 1], [1, 0]])
 
-        # Observable for ancilla
-        X_0 = scipy.sparse.kron(x, scipy.sparse.identity(dim**2))
-        _X = (X_0@rho_out)
+        # Construct the observable for the ancilla qubit
+        X_0 = sparse.kron(x, sparse.identity(dim**2))
+        # Apply the observable to the output state from virtual distillation
+        _X = (X_0 @ rho_out)
 
-        # expectation value of numerator
+        # Calculate the expectation value of the numerator of the mitigated cost
         numerator = numpy.trace(C_2 * _X)
-        # expectation value of denominator
+        # Calculate the expectation value of the denominator of the mitigated cost
         denominator = numpy.trace(_X)
 
+        # Compute the mitigated cost by dividing the numerator by the denominator
         mitigated_cost = (numerator / denominator)
         return mitigated_cost
 
@@ -434,11 +452,11 @@ class MyClass(object):
         return m_cost
 
     def virtual_distillation(self,
-                             with_noise: cirq.SingleQubitGate = None) -> cirq.Circuit:
+                             with_noise: raw_types.Gate = None) -> cirq.Circuit: # type: ignore
         """Creates the virtual distillation circuit for M=2
 
         Args:
-            with_noise (cirq.SingleQubitGate, optional): Error channel to be
+            with_noise (raw_types.Gate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
         Returns:
@@ -462,12 +480,12 @@ class MyClass(object):
 
     def simulate_virtual_distillation(self,
                                       rho: numpy.ndarray,
-                                      with_noise: cirq.SingleQubitGate = None) -> numpy.ndarray:
+                                      with_noise: raw_types.Gate = None) -> numpy.ndarray: # type: ignore
         """Simulates the virtual distillation process
 
         Args:
             rho (numpy.ndarray): Density matrix to be purified
-            with_noise (cirq.SingleQubitGate, optional): Error channel to be
+            with_noise (raw_types.Gate, optional): Error channel to be
                 appended after every gate. Defaults to None.
 
         Returns:
@@ -561,7 +579,7 @@ class MyClass(object):
         x = numpy.array([[0, 1], [1, 0]])
 
         # Observable for ancilla
-        X_0 = scipy.sparse.kron(x, scipy.sparse.identity(dim**2))
+        X_0 = sparse.kron(x, sparse.identity(dim**2))
 
         _X = (X_0@rho)
         # expectation value of numerator
@@ -577,7 +595,7 @@ class MyClass(object):
         # variance of the estimator
         var_estimator = (var_numerator / denominator**2
                          + numerator**2 / denominator**4 * var_denominator
-                         - 2 * numerator / denominator**3 * cov).real
+                         - 2 * numerator / denominator**3 * cov).real 
         return var_estimator
 
     def ideal_mitigated_variance(self, rho: numpy.ndarray) -> float:
