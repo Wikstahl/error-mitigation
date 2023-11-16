@@ -5,7 +5,6 @@ import scipy
 import networkx
 from scipy import sparse
 from cirq.ops import raw_types
-from cirq import value
 from typing import Iterable
 
 __all__ = ["DepolarizingChannel", "DephasingChannel", "AmplitudeDampingChannel",
@@ -419,7 +418,7 @@ class MyClass(object):
 
         # Compute the mitigated cost by dividing the numerator by the denominator
         mitigated_cost = (numerator / denominator)
-        return mitigated_cost
+        return mitigated_cost.real
 
     def mitigated_cost(self, rho: numpy.ndarray, p: float = 0) -> float:
         """Calculates the mitigated cost of virtual distillation
@@ -526,7 +525,7 @@ class MyClass(object):
             f = fidelity(new_initial_state, initial_state)
             if (1 - f) > atol:
                 assert(
-                    "Approximated density matrix is not close enough to the original one")
+                    "Approximated density matrix is not close enough to the original one"
             else:
                 # Replace the original density matrix with the new one
                 initial_state = new_initial_state

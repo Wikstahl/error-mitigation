@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 import networkx as nx
-from module import DephasingChannel, DepolarizingChannel, MyClass, Results
+from module import DephasingChannel, DepolarizingChannel, AmplitudeDampingChannel, MyClass, Results
 from module import drift
 
 # Loop over all instances
@@ -15,8 +15,8 @@ for idx in range(30):
     # Create result object
     res = Results(path)
     # Get optimal angles
-    alpha_dep, beta_dep, alpha_z, beta_z = res.get_angles()
-    alpha_with_vd_dep, beta_with_vd_dep, alpha_with_vd_z, beta_with_vd_z = res.get_vd_angles()
+    alpha_dep, beta_dep, alpha_z, beta_z, alpha_amp, beta_amp = res.get_angles()
+    alpha_with_vd_dep, beta_with_vd_dep, alpha_with_vd_z, beta_with_vd_z, alpha_with_vd_amp, beta_with_vd_amp  = res.get_vd_angles()
     # Get the noiseless angles
     alpha, beta = alpha_dep[0], beta_dep[0]
     # Simulate QAOA
@@ -28,6 +28,8 @@ for idx in range(30):
     drift_with_vd_z = []
     drift_dep = []
     drift_with_vd_dep = []
+    drift_amp = []
+    drift_with_vd_amp = []
     for key, p in enumerate(noise_levels):
         # Simulate QAOA with noise
         rho_z = obj.simulate_qaoa(
@@ -38,13 +40,20 @@ for idx in range(30):
             (alpha_dep[key], beta_dep[key]), with_noise=DepolarizingChannel(p=p))
         rho_with_vd_dep = obj.simulate_qaoa(
             (alpha_with_vd_dep[key], beta_with_vd_dep[key]), with_noise=DepolarizingChannel(p=p))
-        drift_z.append(drift(psi, rho_z))
-        drift_dep.append(drift(psi, rho_dep))
-        drift_with_vd_z.append(drift(psi, rho_with_vd_z))
-        drift_with_vd_dep.append(drift(psi, rho_with_vd_dep))
+        rho_amp = obj.simulate_qaoa(
+            (alpha_amp[key], beta_amp[key]), with_noise=AmplitudeDampingChannel(p=p))
+        rho_with_vd_amp = obj.simulate_qaoa(
+            (alpha_with_vd_amp[key], beta_with_vd_amp[key]), with_noise=AmplitudeDampingChannel(p=p))
 
-    data = np.array([drift_z, drift_dep])
-    data_with_vd = np.array([drift_with_vd_z, drift_with_vd_dep])
+        drift_z.append(drift(psi, rho_z))
+        drift_with_vd_z.append(drift(psi, rho_with_vd_z))
+        drift_dep.append(drift(psi, rho_dep))
+        drift_with_vd_dep.append(drift(psi, rho_with_vd_dep))
+        drift_amp.append(drift(psi, rho_amp))
+        drift_with_vd_amp.append(drift(psi, rho_with_vd_amp))
+
+    data = np.array([drift_z, drift_dep, drift_amp])
+    data_with_vd = np.array([drift_with_vd_z, drift_with_vd_dep, drift_with_vd_amp])
     # Save results
     filename = path + "qaoa_drift"
     with open(filename, 'wb') as f:
