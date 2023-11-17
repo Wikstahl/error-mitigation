@@ -3,9 +3,12 @@ import cirq
 import sympy
 import scipy
 import networkx
+import warnings
 from scipy import sparse
 from cirq.ops import raw_types
 from typing import Iterable
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 __all__ = ["DepolarizingChannel", "DephasingChannel", "AmplitudeDampingChannel",
            "MyClass", "drift", "fidelity", "average_gate_fidelity"]
@@ -506,39 +509,46 @@ class MyClass(object):
         # Change data type to complex64
         initial_state = initial_state.astype('complex64')
 
-        """
-        cirq.validate_density_matrix requires all eigenvalues to be > -atol
+        """ cirq.validate_density_matrix requires all eigenvalues to be > -atol
         where atol = 1e-7. Because we can't give atol as an argument to the
         circuit simulator we have to approximate the density matrix to a valid
         one.
         """
-        """
-        atol = 1e-7
-        eVals, eVecs = numpy.linalg.eigh(initial_state)
-        if (eVals > -atol).all() == False:
-            # Project the density matrix closer to the valid subspace
-            eVals[eVals < -atol] = 0
-            new_initial_state = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
-            # Check that the new denstiy matrix is close to the original one
-            # by computing the fidelity
-            f = fidelity(new_initial_state, initial_state)
-            if (1 - f) > atol:
-                assert(
-                    "Approximated density matrix is not close enough to the original one"
-            else:
-                # Replace the original density matrix with the new one
-                initial_state = new_initial_state
-        """
         # Simulating with the density matrix simulator.
         sim = cirq.DensityMatrixSimulator()
-
-        # Simulate Virtual distillation
-        result = sim.simulate(
-            circuit,
-            initial_state=initial_state,
-            qubit_order=cirq.LineQubit.range(2 * self.num_nodes + 1)
-        )
-        return result.final_density_matrix
+        try:
+            # Simulate Virtual distillation
+            result = sim.simulate(
+                circuit,
+                initial_state=initial_state,
+                qubit_order=cirq.LineQubit.range(2 * self.num_nodes + 1)
+            )
+            return result.final_density_matrix
+        except ValueError:
+            atol = 1e-7
+            eVals, eVecs = numpy.linalg.eigh(initial_state)
+            if (eVals > -atol).all() == False:
+                # Project the density matrix closer to the valid subspace
+                eVals[eVals < -atol] = 0
+                new_initial_state = eVecs@numpy.diag(eVals)@numpy.conj(eVecs.T)
+                # Check that the new denstiy matrix is close to the original one
+                # by computing the fidelity
+                f = fidelity(new_initial_state, initial_state)
+                if (1 - f) > atol:
+                    assert("Approximated density matrix is not close enough to the original one")
+                else:
+                    # Replace the original density matrix with the new one
+                    initial_state = new_initial_state
+                    # Attempt the simulation again with the new initial state
+                    result = sim.simulate(
+                        circuit,
+                        initial_state=initial_state,
+                        qubit_order=cirq.LineQubit.range(2 * self.num_nodes + 1)
+                    )
+                    return result.final_density_matrix
+            else:
+                # If there was no issue with the eigenvalues, re-raise the original ValueError
+                raise
 
     def unmitigated_variance(self, rho: numpy.ndarray) -> float:
         """Calculates the variance of the estimator for the unmitigated
