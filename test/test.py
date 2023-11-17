@@ -96,7 +96,7 @@ class TestGraph(unittest.TestCase):
                 )
                 var_estimated = self.obj.mitigated_variance(rho_out)
                 self.assertAlmostEqual(
-                    round(var_predicted), round(var_estimated))
+                    round(var_predicted), round(var_estimated), places=6)
 
     def test_zero_noise_variance(self):
         """

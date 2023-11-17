@@ -108,8 +108,7 @@ def drift(A: numpy.ndarray, B: numpy.ndarray) -> float:
     """
     dom = dominant_eigenvector(B)
     fidelity = abs(numpy.conj(dom.T)@A@dom)
-    return 1 - float(fidelity)
-
+    return 1 - float(fidelity.item())
 
 class DepolarizingChannel(raw_types.Gate):
     def __init__(self, p: float) -> None:
@@ -204,7 +203,7 @@ class MyClass(object):
         # Number of nodes
         N = self.num_nodes
         # Adjacency matrix
-        A = networkx.adjacency_matrix(self.graph).todense()
+        A = networkx.adjacency_matrix(self.graph).toarray()
 
         # Generate a list of all possible n‐tuples of elements from {1,-1} and
         # organize them as a (2^n x n) matrix. In other words create all
