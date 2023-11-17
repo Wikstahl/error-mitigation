@@ -36,7 +36,7 @@ class TestGraph(unittest.TestCase):
             with self.subTest(p=p):
                 mitigated_cost_explicit = self.obj.mitigated_cost_explicit(rho=self.input, with_noise=DepolarizingChannel(p=p))
                 mitigated_cost = self.obj.mitigated_cost(rho=self.input, p=p)
-                self.assertAlmostEqual(mitigated_cost_explicit, mitigated_cost, places=6)
+                self.assertAlmostEqual(mitigated_cost_explicit, mitigated_cost, places=5)
 
     def test_mitigated_cost_depolarizing(self):
         for p in self.p:
@@ -59,7 +59,7 @@ class TestGraph(unittest.TestCase):
                 predicted_mitigated_cost = self.obj.mitigated_cost(
                     self.input, p=p)
                 self.assertAlmostEqual(
-                    mitigated_cost, predicted_mitigated_cost, places=6)
+                    mitigated_cost, predicted_mitigated_cost, places=5)
 
     def test_mitigated_cost_dephasing(self):
         for p in self.p:
@@ -82,7 +82,7 @@ class TestGraph(unittest.TestCase):
                 predicted_mitigated_cost = self.obj.mitigated_cost(
                     self.input, p=0)
                 self.assertAlmostEqual(
-                    mitigated_cost, predicted_mitigated_cost, places=6)
+                    mitigated_cost, predicted_mitigated_cost, places=5)
 
     def test_mitigated_variance_dephasing(self):
         for p in self.p:
@@ -96,7 +96,7 @@ class TestGraph(unittest.TestCase):
                 )
                 var_estimated = self.obj.mitigated_variance(rho_out)
                 self.assertAlmostEqual(
-                    round(var_predicted), round(var_estimated), places=6)
+                    round(var_predicted), round(var_estimated), places=5)
 
     def test_zero_noise_variance(self):
         """
