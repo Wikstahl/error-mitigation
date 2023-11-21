@@ -1,5 +1,4 @@
 import unittest
-import random
 import networkx
 import numpy
 import cirq
