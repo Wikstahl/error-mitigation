@@ -2,6 +2,7 @@ import pickle
 import os
 import numpy as np
 import networkx as nx
+from tqdm import tqdm
 from scipy.optimize import minimize
 from module import AmplitudeDampingChannel, MyClass
 
@@ -14,7 +15,7 @@ os.chdir(dname)
 data = dict()
 data_with_vd = dict()
 # Loop over all instances
-for idx in range(30):
+for idx in tqdm(range(30)):
     # Path
     path = "../../data/max_cut_" + str(idx) + "/"
     # Load graph
@@ -46,10 +47,10 @@ for idx in range(30):
         data_with_vd[str(key)] = (p, res_with_vd)
 
     # Save results
-    filename = path + "qaoa_parameters_minimize_amplitude_damping"
+    filename = path + "qaoa_parameters_minimize_amplitude_damping_new"
     with open(filename, 'wb') as f:
         pickle.dump(data, f)
 
-    filename = path + "qaoa_parameters_minimize_amplitude_damping_with_vd"
+    filename = path + "qaoa_parameters_minimize_amplitude_damping_with_vd_new"
     with open(filename, 'wb') as f:
         pickle.dump(data_with_vd, f)

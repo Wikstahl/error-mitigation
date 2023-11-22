@@ -155,7 +155,7 @@ class AmplitudeDampingChannel(raw_types.Gate):
     def __init__(self, p: float) -> None:
         # Set the error probability such that the average gate fidelity 
         # is the same between all error-channels
-        self._p = 4*(numpy.sqrt(1-p)+p-1)
+        self._p = p #4*(numpy.sqrt(1-p)+p-1)
 
     def _num_qubits_(self) -> int:
         return 1
